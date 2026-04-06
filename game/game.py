@@ -34,14 +34,14 @@ class BackgammonGame:
         """
         self.board = Board()
         self.current_player: Optional[Player] = None
-        self.curren_dice: Optional[Tuple[int, int]] = None
+        self.current_dice: Optional[Tuple[int, int]] = None
         self.available_dice: List[int] = []
         self.current_moves: List[Move] = [] # Moves made (keep track for undo)
         self.game_started = False
         self.game_over = False
         self.result: Optional[GameResult] = None
         # (move, board_state_before)
-        self.move_history = List[Tuple[Move, Board]] = [] 
+        self.move_history: List[Tuple[Move, Board]] = [] 
 
     def start_game(self) -> Player:
         """
@@ -58,7 +58,7 @@ class BackgammonGame:
         while roll == (2, 1) or roll == (1,2):
             roll = Dice.roll()
 
-        self.curren_dice = roll
+        self.current_dice = roll
         self.available_dice = Dice.get_moves(roll)
         self.game_started = True
 
@@ -80,12 +80,12 @@ class BackgammonGame:
         if self.available_dice:
             raise RuntimeError("Current turn is not finished yet")
         
-        self.curren_dice = Dice.roll()
-        self.available_dice = Dice.get_moves(self.curren_dice)
+        self.current_dice = Dice.roll()
+        self.available_dice = Dice.get_moves(self.current_dice)
         self.current_moves = []
         self.move_history = []
 
-        return self.curren_dice
+        return self.current_dice
     
     def get_current_dice(self) -> Optional[Tuple[int, int]]:
         """
@@ -93,7 +93,7 @@ class BackgammonGame:
         Returns:
             the current dice roll or None if no roll has been made
         """
-        return self.curren_dice
+        return self.current_dice
     
     def get_available_dice(self) -> List[int]:
         """
@@ -109,12 +109,12 @@ class BackgammonGame:
         Returns:
             list of posible move sequences
         """
-        if not self.available_dice:
+        if not self.available_dice or self.current_player is None:
             return [[]]
         
         return MoveValidator.get_all_legal_moves(self.board,
-                                                 self.current_player,
-                                                 self.available_dice)
+                                                 self.available_dice,
+                                                 self.current_player)
     
     def get_legal_single_moves(self) -> List[Move]:
         """
@@ -122,7 +122,7 @@ class BackgammonGame:
         Returns:
             list of legal moves that can be made with available dice
         """
-        if not self.available_dice:
+        if not self.available_dice or self.current_player is None:
             return []
         
         all_moves = []
@@ -141,13 +141,13 @@ class BackgammonGame:
         Returns:
             True if the move was made successfully, False otherwise
         """
-        if not self.available_dice:
+        if not self.available_dice or self.current_player is None:
             return False
         
         if move.die_value not in self.available_dice:
             return False
         
-        if not MoveValidator.is_legal_move(self.board, move,
+        if not MoveValidator.is_valid_move(self.board, move,
                                            self.current_player):
             return False
         
@@ -172,6 +172,9 @@ class BackgammonGame:
         Returns:
             True if all moves were made successfully, False otherwise
         """
+        if self.current_player is None:
+            return False
+        
         temp_board = self.board.copy()
         temp_dice = self.available_dice.copy()
 
@@ -179,7 +182,7 @@ class BackgammonGame:
             if move.die_value not in temp_dice:
                 return False
             
-            if not MoveValidator.is_legal_move(temp_board, move,
+            if not MoveValidator.is_valid_move(temp_board, move,
                                                self.current_player):
                 return False
             
@@ -238,8 +241,8 @@ class BackgammonGame:
             if legal_moves and legal_moves[0]:
                 return False
             
-        self.current_player = self.current_player.opponent()
-        self.curren_dice = None
+        self.current_player = self.current_player.opponent() # type: ignore
+        self.current_dice = None
         self.available_dice = []
         self.current_moves = []
         self.move_history = []
@@ -253,8 +256,8 @@ class BackgammonGame:
         if self.game_over:
             return
         
-        self.current_player = self.current_player.opponent()
-        self.curren_dice = None
+        self.current_player = self.current_player.opponent() # type: ignore
+        self.current_dice = None
         self.available_dice = []
         self.current_moves = []
         self.move_history = []
@@ -264,8 +267,9 @@ class BackgammonGame:
         End the game and calculate result.
         """
         self.game_over = True
-        winner = self.current_player()
-        loser = winner.oppponent()
+        assert self.current_player is not None
+        winner = self.current_player
+        loser = winner.opponent()
 
         loser_off = self.board.tokens_off_board(loser)
         is_backgammon = False

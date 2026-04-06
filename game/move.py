@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional
 from board import Board, Player
 
 class Move:
@@ -119,7 +119,11 @@ class MoveValidator:
         if move.from_line is None:
             if board.tokens_off_board(player) == 0:
                 return False
+            
             entry_line = move.to_line
+            if entry_line is None:
+                return False
+            
             if board.is_line_blocked(entry_line, player):
                 return False
             return True
@@ -134,6 +138,8 @@ class MoveValidator:
             return False
         
         to_line = move.to_line
+        if to_line is None:
+            return False
 
         if to_line < 0 or to_line > 23:
             return False
@@ -245,30 +251,41 @@ class MoveValidator:
         return moves
     
     @staticmethod
-    def execute_move(board: Board, move: Move, player: Player) -> None:
+    def execute_move(board: Board, move: Move, player: Player) -> bool:
         """
         Execute a move on the board.
         Args:
             board: the game board
             move: the move to execute
             player: the player making the
+        Returns:
+            True if move was executed successfully, False otherwise
         """
+        # starting from bar
         if move.from_line is None:
-            board.tokens_on_bar[player] -= 1
+            if move.to_line is None:
+                return False
+            
+            board.bar[player] -= 1
             if (board.is_token_alone(move.to_line)
                 and board.get_line_owner(move.to_line) != player):
-                board.hit_token(move.to_line, player)
+                board.hit_token(move.to_line)
             board.add_token(move.to_line, player)
-            return
+            return True
         
         if move.is_bearing:
             board.remove_token(move.from_line, player)
-            board.tokens_off_board[player] += 1
-            return
+            board.off[player] += 1
+            return True
         
+        if move.to_line is None:
+            return False
+
         board.remove_token(move.from_line, player)
         if (board.is_token_alone(move.to_line)
             and board.get_line_owner(move.to_line) != player):
-            board.hit_token(move.to_line, player)
+            board.hit_token(move.to_line)
         board.add_token(move.to_line, player)
+
+        return True
                 
