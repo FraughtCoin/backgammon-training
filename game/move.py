@@ -1,5 +1,5 @@
 from typing import List, Optional
-from board import Board, Player
+from .board import Board, Player
 
 class Move:
     """
@@ -117,7 +117,7 @@ class MoveValidator:
         """
         # Check if entering from bar
         if move.from_line is None:
-            if board.tokens_off_board(player) == 0:
+            if board.tokens_on_bar(player) == 0:
                 return False
             
             entry_line = move.to_line

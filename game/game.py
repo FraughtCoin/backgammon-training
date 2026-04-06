@@ -1,7 +1,7 @@
 from typing import List, Optional, Tuple
-from board import Board, Player
-from dice import Dice
-from move import Move, MoveValidator
+from .board import Board, Player
+from .dice import Dice
+from .move import Move, MoveValidator
 
 class GameResult:
     """

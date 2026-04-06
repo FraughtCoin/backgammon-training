@@ -30,13 +30,13 @@ class Board:
         self.lines[5] = 5
         self.lines[7] = 3
         self.lines[12] = 5
-        self.lines[18] = 5
+        self.lines[23] = 2
 
         # Black pieces
         self.lines[0] = -2
         self.lines[11] = -5
         self.lines[16] = -3
-        self.lines[23] = -2
+        self.lines[18] = -5
 
     def get_tokens(self, line: int) -> int:
         """
