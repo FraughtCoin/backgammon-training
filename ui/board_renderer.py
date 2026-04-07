@@ -15,7 +15,7 @@ class BoardRenderer:
         self.bar_width = bar_width
         self.colors = colors
     
-    def draw_board(self, selected_line: Optional[int]):
+    def draw_board(self, selected_line: Optional[int], legal_destinations=None):
         """
         Draw the complete board.
         Args:
@@ -26,6 +26,9 @@ class BoardRenderer:
         self._draw_bar()
         self._draw_border()
         self._draw_highlight(selected_line)
+
+        if legal_destinations:
+            self._draw_legal_destinations(legal_destinations)
     
     def _draw_background(self):
         """
@@ -215,3 +218,34 @@ class BoardRenderer:
             y = self.board_y + self.board_height - self.point_height
 
         self.screen.blit(highlight_surface, (x, y))
+
+    def _draw_legal_destinations(self, destinations):
+        """
+        """
+        for dest in destinations:
+            if dest == -1:
+                continue
+
+            _, _, is_top = self._get_line_position(dest)
+            highlight_surface = pygame.Surface((self.point_width, self.point_height),
+                                               pygame.SRCALPHA)
+            highlight_surface.fill(self.colors['legal_destination'])
+
+            if is_top:
+                visual_index = dest - 12
+                x_offset = visual_index * self.point_width
+                if visual_index >= 6:
+                    x_offset += self.bar_width
+                
+                x = self.board_x + x_offset
+                y = self.board_y
+            else:
+                visual_index = 11 - dest
+                x_offset = visual_index * self.point_width
+                if visual_index >= 6:
+                    x_offset += self.bar_width
+
+                x = self.board_x + x_offset
+                y = self.board_y + self.board_height - self.point_height
+            
+            self.screen.blit(highlight_surface, (x, y))
