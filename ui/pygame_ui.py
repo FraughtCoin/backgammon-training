@@ -101,6 +101,15 @@ class PygameUI:
             if self.selected_line is not None and self.selected_line != clicked_line:
                 legal_moves = self.get_legal_moves_from_line(self.selected_line)
                 for move in legal_moves:
+                    if clicked_line == -1 and move.is_bearing:
+                        if self.game.make_move(move):
+                            self.selected_line = None
+                            self.legal_destinations = []
+
+                            if not self.game.get_available_dice():
+                                self.game.end_turn()
+                            return
+
                     if move.to_line == clicked_line:
                         if self.game.make_move(move):
                             self.selected_line = None
@@ -111,9 +120,13 @@ class PygameUI:
 
                             return
                 
-                self.selected_line = clicked_line
-                self.legal_destinations = self.get_legal_destinations(self.selected_line)
+                if clicked_line != -1:
+                    self.selected_line = clicked_line
+                    self.legal_destinations = self.get_legal_destinations(self.selected_line)
             else:
+                if clicked_line == -1:
+                    return
+                
                 if self.selected_line == clicked_line:
                     self.selected_line = None
                     self.legal_destinations = []
@@ -143,7 +156,12 @@ class PygameUI:
         bar_start = 6 * self.LINE_WIDTH
         bar_end = bar_start + self.BAR_WIDTH
         if bar_start <= rel_x <= bar_end:
-            return None
+            return -2
+        
+        bear_off_start = 12 * self.LINE_WIDTH + self.BAR_WIDTH
+        bear_off_end = bear_off_start + self.LINE_WIDTH
+        if bear_off_start <= rel_x <= bear_off_end:
+            return -1
 
         if rel_x > bar_start:
             rel_x -= self.BAR_WIDTH
@@ -166,6 +184,11 @@ class PygameUI:
             list of legal destination line numbers
         """
         all_legal_moves = self.game.get_legal_single_moves()
+
+        if from_line == -2:
+            moves_from_bar = [move for move in all_legal_moves if move.from_line is None]
+            return moves_from_bar
+
         moves_from_point = [move for move in all_legal_moves
                             if move.from_line == from_line]
         return moves_from_point
@@ -191,7 +214,8 @@ class PygameUI:
 
 
     def update(self):
-        pass
+        if self.game.get_available_dice() and not self.game.get_legal_single_moves():
+            self.game.force_end_turn()
 
     def draw(self):
         self.screen.fill(self.COLORS['background'])

@@ -22,6 +22,9 @@ class Move:
         self.die_value = die_value
         self.is_bearing = is_bearing
 
+    def __str__(self):
+        return f"Move(from={self.from_line}, to={self.to_line}, die={self.die_value}, bearing={self.is_bearing})"
+
 class MoveValidator:
     """
     Validator and generator for backgammon moves
@@ -79,14 +82,14 @@ class MoveValidator:
             if from_line > 6:
                 return False
             
-            if from_line == die_value:
+            if from_line == die_value - 1:
                 return True
             
             if die_value > from_line:
                 for l in range(from_line + 1, 6):
                     if board.get_tokens(l) > 0:
                         return False
-                    return True
+                return True
             
             return False
         else:

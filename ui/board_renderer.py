@@ -193,7 +193,15 @@ class BoardRenderer:
         if selected_line is None:
             return
         
-        line_x, line_y, is_top = self._get_line_position(selected_line)
+        if selected_line == -2:
+            bar_x = self.board_x + (6 * self.point_width)
+            highlight_surface = pygame.Surface((self.bar_width, self.board_height),
+                                               pygame.SRCALPHA)
+            highlight_surface.fill(self.colors['highlight'])
+            self.screen.blit(highlight_surface, (bar_x, self.board_y))
+            return
+
+        _, _, is_top = self._get_line_position(selected_line)
 
         highlight_surface = pygame.Surface((self.point_width,
                                             self.point_height),
@@ -224,6 +232,11 @@ class BoardRenderer:
         """
         for dest in destinations:
             if dest == -1:
+                bear_off_x = self.board_x + (12 * self.point_width) + self.bar_width
+                highlight_surface = pygame.Surface((self.point_width, self.board_height),
+                                                   pygame.SRCALPHA)
+                highlight_surface.fill(self.colors['legal_destination'])
+                self.screen.blit(highlight_surface, (bear_off_x, self.board_y))
                 continue
 
             _, _, is_top = self._get_line_position(dest)
