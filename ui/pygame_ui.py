@@ -4,6 +4,7 @@ from typing import Tuple, Optional, List
 from game import BackgammonGame, Move, Player
 from .board_renderer import BoardRenderer
 from .token_renderer import TokenRenderer
+from .button import Button
 
 class PygameUI:
     """
@@ -30,6 +31,7 @@ class PygameUI:
         'background': (255, 255, 255),
         'white': (255, 255, 255),
         'dark_gray': (80, 80, 80),
+        'light_gray':  (140, 140, 140),
         'black': (0, 0, 0),
         'board_margin': (255, 153, 102),
         'board_background': (255, 204, 153),
@@ -76,6 +78,36 @@ class PygameUI:
             self.COLORS
         )
 
+        button_spacing = 20
+        button_width = 150
+        button_height = 40
+        button_y = self.board_y - button_height
+
+        self.roll_button = Button(
+            self.board_x, button_y,
+            button_width, button_height,
+            "Roll Dice", self.COLORS['dark_gray'],
+            self.COLORS['white'], self.COLORS['light_gray'])
+        
+        self.undo_button = Button(
+            self.board_x + button_width + button_spacing, button_y,
+            button_width, button_height,
+            "Undo", self.COLORS['dark_gray'],
+            self.COLORS['white'], self.COLORS['light_gray'])
+        
+        self.end_turn_button = Button(
+            self.board_x + 2 * (button_width + button_spacing), button_y,
+            button_width, button_height,
+            "End Turn", self.COLORS['dark_gray'],
+            self.COLORS['white'], self.COLORS['light_gray'])
+        
+        self.new_game_button = Button(
+            self.board_x + 3 * (button_width + button_spacing), button_y,
+            button_width, button_height,
+            "New Game", self.COLORS['dark_gray'],
+            self.COLORS['white'], self.COLORS['light_gray'])
+
+
     def handle_events(self):
         """
         Handle pygame events
@@ -88,7 +120,21 @@ class PygameUI:
                     self.running = False
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
-                    self.handle_click(event.pos)
+                    if self.roll_button.handle_event(event):
+                        self.handle_roll_dice()
+                    if self.undo_button.handle_event(event):
+                        self.handle_undo()
+                    if self.end_turn_button.handle_event(event):
+                        self.handle_end_turn()
+                    if self.new_game_button.handle_event(event):
+                        self.handle_new_game()
+                    else:
+                        self.handle_click(event.pos)
+            elif event.type == pygame.MOUSEMOTION:
+                self.roll_button.handle_event(event)
+                self.undo_button.handle_event(event)
+                self.end_turn_button.handle_event(event)
+                self.new_game_button.handle_event(event)
 
     def handle_click(self, pos: Tuple[int, int]):
         """
@@ -105,19 +151,12 @@ class PygameUI:
                         if self.game.make_move(move):
                             self.selected_line = None
                             self.legal_destinations = []
-
-                            if not self.game.get_available_dice():
-                                self.game.end_turn()
                             return
 
                     if move.to_line == clicked_line:
                         if self.game.make_move(move):
                             self.selected_line = None
                             self.legal_destinations = []
-
-                            if not self.game.get_available_dice():
-                                self.game.end_turn()
-
                             return
                 
                 if clicked_line != -1:
@@ -217,11 +256,29 @@ class PygameUI:
         if self.game.get_available_dice() and not self.game.get_legal_single_moves():
             self.game.force_end_turn()
 
+        can_roll = ((not self.game.get_current_dice() or not self.game.get_available_dice())
+                    and not self.game.can_undo())
+        self.roll_button.set_enabled(can_roll and not self.game.is_game_over())
+
+        self.undo_button.set_enabled(self.game.can_undo() and not self.game.is_game_over())
+
+        can_end_turn = (self.game.get_current_dice() is not None and 
+                        len(self.game.get_available_dice()) == 0)
+        self.end_turn_button.set_enabled(can_end_turn and not self.game.is_game_over())
+        
+        self.new_game_button.set_enabled(True)
+
     def draw(self):
         self.screen.fill(self.COLORS['background'])
         self.board_renderer.draw_board(self.selected_line, self.legal_destinations)
         self.token_renderer.draw_all_tokens(self.game.get_board())
         self.draw_game_info()
+
+        self.roll_button.draw(self.screen)
+        self.undo_button.draw(self.screen)
+        self.end_turn_button.draw(self.screen)
+        self.new_game_button.draw(self.screen)
+
         pygame.display.flip()
 
     def draw_game_info(self):
@@ -259,6 +316,32 @@ class PygameUI:
         
         pygame.quit()
         sys.exit()
+
+    def handle_roll_dice(self):
+        """
+        """
+        if not self.game.get_current_dice() or not self.game.get_available_dice():
+            self.game.roll_dice()
+
+    def handle_undo(self):
+        """
+        """
+        if self.game.undo_last_move():
+            self.selected_line = None
+            self.legal_destinations = []
+
+    def handle_end_turn(self):
+        """
+        """
+        if self.game.end_turn():
+            self.selected_line = None
+            self.legal_destinations = []
+
+    def handle_new_game(self):
+        self.game.reset()
+        self.game.start_game()
+        self.selected_line = None
+        self.legal_destinations = []
 
 def main():
     ui = PygameUI()
