@@ -142,6 +142,9 @@ class PygameUI:
         Args:
             pos - tuple of (x, y) coordinates of the click
         """
+        if self.game.is_game_over():
+            return
+        
         clicked_line = self.get_line_at_position(pos)
         if clicked_line is not None:
             if self.selected_line is not None and self.selected_line != clicked_line:
@@ -273,6 +276,7 @@ class PygameUI:
         self.board_renderer.draw_board(self.selected_line, self.legal_destinations)
         self.token_renderer.draw_all_tokens(self.game.get_board())
         self.draw_game_info()
+        self.draw_game_over()
 
         self.roll_button.draw(self.screen)
         self.undo_button.draw(self.screen)
@@ -305,6 +309,51 @@ class PygameUI:
             text = font.render(available_text, True, self.COLORS['text'])
             self.screen.blit(text, (self.board_x + 600, info_y))
 
+    def draw_game_over(self):
+        """
+        """
+        if not self.game.is_game_over():
+            return
+        
+        result = self.game.get_result()
+        if not result:
+            return
+        
+        overlay = pygame.Surface((self.WINDOW_WIDTH, self.WINDOW_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
+        self.screen.blit(overlay, (0, 0))
+
+        box_width = 600
+        box_height = 400
+        box_x = (self.WINDOW_WIDTH - box_width) // 2
+        box_y = (self.WINDOW_HEIGHT - box_height) // 2
+
+        pygame.draw.rect(self.screen, self.COLORS['background'], (box_x, box_y, box_width, box_height))
+        pygame.draw.rect(self.screen, self.COLORS['text'], (box_x, box_y, box_width, box_height), 3)
+
+        title_font = pygame.font.Font(None, 48)
+        title_text = title_font.render("Game Over", True, (200, 200, 200))
+        title_rect = title_text.get_rect(center=(self.WINDOW_WIDTH // 2, box_y + 50))
+        self.screen.blit(title_text, title_rect)
+
+        winner_name = "White" if result.winner.value == 1 else "Black"
+        winner_font = pygame.font.Font(None, 36)
+        winner_text = winner_font.render(f"Winner: {winner_name}", True, (200, 200, 200))
+        winner_rect = winner_text.get_rect(center=(self.WINDOW_WIDTH // 2, box_y + 150))
+        self.screen.blit(winner_text, winner_rect)
+
+        result_font = pygame.font.Font(None, 40)
+        if result.is_backgammon:
+            result_type = "Backgammon! (3 points)"
+        elif result.is_gammon:
+            result_type = "Gammon! (2 points)"
+        else:
+            result_type = "Normal Win (1 point)"
+        
+        result_text = result_font.render(result_type, True, (200, 200, 200))
+        result_rect = result_text.get_rect(center=(self.WINDOW_WIDTH // 2, box_y + 230))
+        self.screen.blit(result_text, result_rect)
+
     def run(self):
         self.game.start_game()
 
@@ -320,12 +369,18 @@ class PygameUI:
     def handle_roll_dice(self):
         """
         """
+        if self.game.is_game_over():
+            return
+        
         if not self.game.get_current_dice() or not self.game.get_available_dice():
             self.game.roll_dice()
 
     def handle_undo(self):
         """
         """
+        if self.game.is_game_over():
+            return
+        
         if self.game.undo_last_move():
             self.selected_line = None
             self.legal_destinations = []
@@ -333,6 +388,9 @@ class PygameUI:
     def handle_end_turn(self):
         """
         """
+        if self.game.is_game_over():
+            return
+
         if self.game.end_turn():
             self.selected_line = None
             self.legal_destinations = []
