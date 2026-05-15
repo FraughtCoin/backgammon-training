@@ -22,6 +22,9 @@ class Move:
         self.die_value = die_value
         self.is_bearing = is_bearing
 
+    def __eq__(self, value: object) -> bool:
+        return self.from_line == value.from_line and self.to_line == value.to_line and self.die_value == value.die_value and self.is_bearing == value.is_bearing # type: ignore
+
     def __str__(self):
         return f"Move(from={self.from_line}, to={self.to_line}, die={self.die_value}, bearing={self.is_bearing})"
 
@@ -270,7 +273,7 @@ class MoveValidator:
                 return False
             
             board.bar[player] -= 1
-            if (board.is_token_alone(move.to_line)
+            if (board.is_blot(move.to_line)
                 and board.get_line_owner(move.to_line) != player):
                 board.hit_token(move.to_line)
             board.add_token(move.to_line, player)
@@ -285,7 +288,7 @@ class MoveValidator:
             return False
 
         board.remove_token(move.from_line, player)
-        if (board.is_token_alone(move.to_line)
+        if (board.is_blot(move.to_line)
             and board.get_line_owner(move.to_line) != player):
             board.hit_token(move.to_line)
         board.add_token(move.to_line, player)

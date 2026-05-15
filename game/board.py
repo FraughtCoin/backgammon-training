@@ -108,13 +108,13 @@ class Board:
         else:
             return value > 1
         
-    def is_token_alone(self, line: int) -> bool:
+    def is_blot(self, line: int) -> bool:
         """
-        Check if a line has only one token
+        Check if a line is a blot
         Args:
             line: line number
         Returns:
-            True if the line has only one token, False otherwise
+            True if the line is a blot, False otherwise
         """
         return abs(self.get_tokens(line)) == 1
 

@@ -1,10 +1,12 @@
 import pygame
 import sys
+import argparse
 from typing import Tuple, Optional, List
 from game import BackgammonGame, Move, Player
 from .board_renderer import BoardRenderer
 from .token_renderer import TokenRenderer
 from .button import Button
+from ai import AIPlayer
 
 class PygameUI:
     """
@@ -42,7 +44,7 @@ class PygameUI:
         'text': (0, 0, 0),
     }
 
-    def __init__(self) -> None:
+    def __init__(self, white_ai: Optional[AIPlayer] = None, black_ai: Optional[AIPlayer] = None, ai_speed: int = 500) -> None:
         """
         Initialize pygame UI
         """
@@ -55,6 +57,11 @@ class PygameUI:
         self.clock = pygame.time.Clock()
         self.game = BackgammonGame()
         self.running = True
+
+        self.white_ai = white_ai
+        self.black_ai = black_ai
+        self.ai_move_delay = ai_speed
+        self.last_ai_move_time = 0
 
         self.board_x = self.BOARD_MARGIN
         self.board_y = self.BOARD_MARGIN
@@ -107,6 +114,31 @@ class PygameUI:
             "New Game", self.COLORS['dark_gray'],
             self.COLORS['white'], self.COLORS['light_gray'])
 
+    def is_current_player_ai(self) -> bool:
+        """
+        Check if the current player is controlled by AI.
+        Returns:
+            True if current player is AI, False otherwise
+        """
+        current_player = self.game.get_current_player()
+        if current_player == Player.WHITE:
+            return self.white_ai is not None
+        elif current_player == Player.BLACK:
+            return self.black_ai is not None
+        return False
+
+    def get_current_ai(self) -> Optional[AIPlayer]:
+        """
+        Get the AI player for the current turn.
+        Returns:
+            AIPlayer instance or None if current player is human
+        """
+        current_player = self.game.get_current_player()
+        if current_player == Player.WHITE:
+            return self.white_ai
+        elif current_player == Player.BLACK:
+            return self.black_ai
+        return None
 
     def handle_events(self):
         """
@@ -120,16 +152,20 @@ class PygameUI:
                     self.running = False
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
-                    if self.roll_button.handle_event(event):
-                        self.handle_roll_dice()
-                    if self.undo_button.handle_event(event):
-                        self.handle_undo()
-                    if self.end_turn_button.handle_event(event):
-                        self.handle_end_turn()
-                    if self.new_game_button.handle_event(event):
-                        self.handle_new_game()
+                    if not self.is_current_player_ai():
+                        if self.roll_button.handle_event(event):
+                            self.handle_roll_dice()
+                        if self.undo_button.handle_event(event):
+                            self.handle_undo()
+                        if self.end_turn_button.handle_event(event):
+                            self.handle_end_turn()
+                        if self.new_game_button.handle_event(event):
+                            self.handle_new_game()
+                        else:
+                            self.handle_click(event.pos)
                     else:
-                        self.handle_click(event.pos)
+                        if self.new_game_button.handle_event(event):
+                            self.handle_new_game()
             elif event.type == pygame.MOUSEMOTION:
                 self.roll_button.handle_event(event)
                 self.undo_button.handle_event(event)
@@ -254,20 +290,72 @@ class PygameUI:
 
         return destinations
 
+    def handle_ai_turn(self):
+        """
+        Handle AI player's turn.
+        """
+        if self.game.is_game_over():
+            return
+        
+        if not self.is_current_player_ai():
+            return
+        
+        current_time = pygame.time.get_ticks()
+        
+        # Roll dice if needed
+        if not self.game.get_current_dice() or not self.game.get_available_dice():
+            if current_time - self.last_ai_move_time > self.ai_move_delay:
+                # Check if we need to end turn (no available dice left)
+                if self.game.get_current_dice() and not self.game.get_available_dice():
+                    if not self.game.end_turn():
+                        self.game.force_end_turn()
+                    self.last_ai_move_time = current_time
+                    return
+                
+                # Otherwise roll dice
+                self.game.roll_dice()
+                self.last_ai_move_time = current_time
+            return
+        
+        # Make a single move
+        if self.game.get_available_dice():
+            legal_moves = self.game.get_legal_single_moves()
+            
+            if len(legal_moves) == 0:
+                # No legal moves available, end turn
+                if current_time - self.last_ai_move_time > self.ai_move_delay:
+                    if not self.game.end_turn():
+                        self.game.force_end_turn()
+                    self.last_ai_move_time = current_time
+                return
+            
+            if current_time - self.last_ai_move_time > self.ai_move_delay:
+                ai_player = self.get_current_ai()
+                if ai_player:
+                    move = ai_player.select_move(self.game)
+                    if move:
+                        success = self.game.make_move(move)
+                        if not success:
+                            print(f"AI move failed: {move}")
+                    self.last_ai_move_time = current_time
+            return
 
     def update(self):
-        if self.game.get_available_dice() and not self.game.get_legal_single_moves():
-            self.game.force_end_turn()
+        # if self.game.get_available_dice() and not self.game.get_legal_single_moves():
+        #     self.game.force_end_turn()
+
+        self.handle_ai_turn()
+        is_ai_turn = self.is_current_player_ai()
 
         can_roll = ((not self.game.get_current_dice() or not self.game.get_available_dice())
                     and not self.game.can_undo())
-        self.roll_button.set_enabled(can_roll and not self.game.is_game_over())
+        self.roll_button.set_enabled(can_roll and not self.game.is_game_over() and not is_ai_turn)
 
-        self.undo_button.set_enabled(self.game.can_undo() and not self.game.is_game_over())
+        self.undo_button.set_enabled(self.game.can_undo() and not self.game.is_game_over() and not is_ai_turn)
 
         can_end_turn = (self.game.get_current_dice() is not None and 
-                        len(self.game.get_available_dice()) == 0)
-        self.end_turn_button.set_enabled(can_end_turn and not self.game.is_game_over())
+                        (len(self.game.get_available_dice()) == 0 or not self.game.get_legal_single_moves()))
+        self.end_turn_button.set_enabled(can_end_turn and not self.game.is_game_over() and not is_ai_turn)
         
         self.new_game_button.set_enabled(True)
 
@@ -356,6 +444,7 @@ class PygameUI:
 
     def run(self):
         self.game.start_game()
+        print(f"Starting player: {self.game.get_current_player()}")
 
         while self.running:
             self.handle_events()
@@ -398,11 +487,44 @@ class PygameUI:
     def handle_new_game(self):
         self.game.reset()
         self.game.start_game()
+        print(f"Starting player: {self.game.get_current_player()}")
         self.selected_line = None
         self.legal_destinations = []
 
 def main():
-    ui = PygameUI()
+    parser = argparse.ArgumentParser(description='Backgammon Game')
+    parser.add_argument('--white-ai', type=str, help='Path to white AI model')
+    parser.add_argument('--black-ai', type=str, help='Path to black AI model')
+    parser.add_argument('--random-white', action='store_true', help='Use random AI for white')
+    parser.add_argument('--random-black', action='store_true', help='Use random AI for black')
+    
+    args = parser.parse_args()
+    
+    white_ai = None
+    black_ai = None
+    ai_speed = 500
+    
+    if args.white_ai or args.random_white:
+        if args.random_white:
+            from ai.ai_player import RandomAIPlayer
+            white_ai = RandomAIPlayer(Player.WHITE)
+            print("Using random AI for White")
+        else:
+            from ai.ai_player import MaskablePPOPlayer
+            white_ai = MaskablePPOPlayer(Player.WHITE, args.white_ai)
+            print(f"Loaded White AI from {args.white_ai}")
+    
+    if args.black_ai or args.random_black:
+        if args.random_black:
+            from ai.ai_player import RandomAIPlayer
+            black_ai = RandomAIPlayer(Player.BLACK)
+            print("Using random AI for Black")
+        else:
+            from ai.ai_player import MaskablePPOPlayer
+            black_ai = MaskablePPOPlayer(Player.BLACK, args.black_ai)
+            print(f"Loaded Black AI from {args.black_ai}")
+    
+    ui = PygameUI(white_ai=white_ai, black_ai=black_ai, ai_speed=ai_speed)
     ui.run()
 
 if __name__ == "__main__":

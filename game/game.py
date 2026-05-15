@@ -1,3 +1,4 @@
+import random
 from typing import List, Optional, Tuple
 from .board import Board, Player
 from .dice import Dice
@@ -49,7 +50,7 @@ class BackgammonGame:
         Retrurns:
             the player who goes first (white by default)
         """
-        self.current_player = Player.WHITE
+        self.current_player = random.choice([Player.WHITE, Player.BLACK])
 
         roll = Dice.roll()
         # Normally, both players roll the dice and the higher one starts the
