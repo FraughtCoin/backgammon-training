@@ -3,6 +3,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import argparse
+import torch
 from sb3_contrib import MaskablePPO
 from sb3_contrib.common.wrappers import ActionMasker
 from sb3_contrib.common.maskable.policies import MaskableActorCriticPolicy
@@ -54,6 +55,10 @@ def train_self_play(
     env_black = Monitor(env_black, log_dir + f"{scoring_function}_black/")
 
     print("Initializing models")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Using device: {device}")
+    if device == "cuda":
+        print(f"GPU: {torch.cuda.get_device_name(0)}")
 
     model_white = MaskablePPO(
         MaskableActorCriticPolicy,
@@ -67,6 +72,7 @@ def train_self_play(
         clip_range=0.2,
         verbose=1,
         tensorboard_log=log_dir + f"{scoring_function}_white_tb/",
+        device=device
     )
     
     model_black = MaskablePPO(
@@ -81,6 +87,7 @@ def train_self_play(
         clip_range=0.2,
         verbose=1,
         tensorboard_log=log_dir + f"{scoring_function}_black_tb/",
+        device=device
     )
 
     print("Starting self-play training")
@@ -129,7 +136,7 @@ def train_self_play(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train backgammon agents")
     parser.add_argument("--scoring", type=str, default="winloss",
-                       choices=["winloss", "pipcount", "bearingoff", "blotpenalty", "combined", "advanced"],
+                       choices=["winloss", "pipcount", "blotpenalty", "combined", "advanced"],
                        help="Scoring function to use")
     parser.add_argument("--timesteps", type=int, default=200000,
                        help="Total training timesteps")
